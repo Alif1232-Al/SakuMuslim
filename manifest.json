@@ -1,0 +1,62 @@
+{
+    "name": "SakuMuslim - Asisten Ibadah Muslim",
+    "short_name": "SakuMuslim",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0D47A1",
+    "theme_color": "#0D47A1",
+    "description": "Aplikasi asisten ibadah muslim - Al-Qur'an, Hadist, Waktu Sholat, Kiblat, Zakat, dan Tasbih Digital",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "categories": [
+        "lifestyle",
+        "education"
+    ],
+    "lang": "id",
+    "dir": "ltr",
+    "screenshots": [],
+    "shortcuts": [
+        {
+            "name": "Baca Al-Qur'an",
+            "short_name": "Qur'an",
+            "url": "/quran",
+            "description": "Baca Al-Qur'an lengkap dengan terjemahan"
+        },
+        {
+            "name": "Waktu Sholat",
+            "short_name": "Sholat",
+            "url": "/prayer-times",
+            "description": "Lihat jadwal waktu sholat"
+        },
+        {
+            "name": "Arah Kiblat",
+            "short_name": "Kiblat",
+            "url": "/qiblat",
+            "description": "Tentukan arah kiblat"
+        }
+    ],
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

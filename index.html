@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/SakuMuslim/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  
+  <!-- Primary Meta Tags -->
+  <title>SakuMuslim - Asisten Ibadah Muslim</title>
+  <meta name="title" content="SakuMuslim - Asisten Ibadah Muslim">
+  <meta name="description" content="Aplikasi asisten ibadah muslim - Al-Qur'an, Hadist, Waktu Sholat, Kiblat, Zakat, dan Tasbih Digital. Gratis, tanpa iklan, dan privat.">
+  <meta name="keywords" content="al-qur'an, quran, hadist, sholat, prayer times, kiblat, qibla, zakat, tasbih, muslim, islamic app">
+  <meta name="author" content="SakuMuslim">
+  <meta name="robots" content="index, follow">
+  <meta name="language" content="Indonesian">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://sakumuslim.app/">
+  <meta property="og:title" content="SakuMuslim - Asisten Ibadah Muslim">
+  <meta property="og:description" content="Aplikasi asisten ibadah muslim - Al-Qur'an, Hadist, Waktu Sholat, Kiblat, Zakat, dan Tasbih Digital. Gratis, tanpa iklan, dan privat.">
+  <meta property="og:image" content="icons/Icon-512.png">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://sakumuslim.app/">
+  <meta property="twitter:title" content="SakuMuslim - Asisten Ibadah Muslim">
+  <meta property="twitter:description" content="Aplikasi asisten ibadah muslim - Al-Qur'an, Hadist, Waktu Sholat, Kiblat, Zakat, dan Tasbih Digital. Gratis, tanpa iklan, dan privat.">
+  <meta property="twitter:image" content="icons/Icon-512.png">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SakuMuslim">
+  <meta name="apple-mobile-web-app-status-bar" content="#1565C0">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#1565C0">
+  <meta name="msapplication-TileColor" content="#1565C0">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</head>
+<body>
+  <!-- Flutter Loader -->
+  <script src="flutter_bootstrap.js" async></script>
+  
+  <!-- Splash Screen (while Flutter loads) -->
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #0D47A1 0%, #1565C0 50%, #1E88E5 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .splash-container {
+      text-align: center;
+      color: white;
+    }
+    .splash-icon {
+      width: 100px;
+      height: 100px;
+      background: white;
+      border-radius: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .splash-icon svg {
+      width: 50px;
+      height: 50px;
+      fill: #0D47A1;
+    }
+    .splash-title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .splash-subtitle {
+      font-size: 16px;
+      opacity: 0.9;
+      margin-bottom: 32px;
+    }
+    .splash-loader {
+      width: 24px;
+      height: 24px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      margin: 0 auto;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+  <div class="splash-container">
+    <div class="splash-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/>
+      </svg>
+    </div>
+    <div class="splash-title">SakuMuslim</div>
+    <div class="splash-subtitle">Asisten Ibadah Muslim</div>
+    <div class="splash-loader"></div>
+  </div>
+</body>
+</html>
