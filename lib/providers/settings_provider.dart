@@ -27,6 +27,15 @@ class SettingsProvider extends ChangeNotifier {
   int _calculationMethod = StorageKeys.defaultCalculationMethod;
   int get calculationMethod => _calculationMethod;
 
+  bool _useGpsLocation = false;
+  bool get useGpsLocation => _useGpsLocation;
+
+  double _gpsLatitude = 0;
+  double get gpsLatitude => _gpsLatitude;
+
+  double _gpsLongitude = 0;
+  double get gpsLongitude => _gpsLongitude;
+
   bool _showTranslation = true;
   bool get showTranslation => _showTranslation;
 
@@ -80,6 +89,10 @@ class SettingsProvider extends ChangeNotifier {
     if (perPrayerMap != null && perPrayerMap is Map) {
       _perPrayerEnabled = Map<String, bool>.from(perPrayerMap);
     }
+
+    _useGpsLocation = _box.get('useGpsLocation', defaultValue: false);
+    _gpsLatitude = _box.get('gpsLatitude', defaultValue: 0.0);
+    _gpsLongitude = _box.get('gpsLongitude', defaultValue: 0.0);
 
     notifyListeners();
   }
@@ -135,6 +148,25 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setShowTransliteration(bool show) async {
     _showTransliteration = show;
     await _box.put(StorageKeys.keyShowTransliteration, show);
+    notifyListeners();
+  }
+
+  Future<void> setGpsLocation(double latitude, double longitude, String cityName) async {
+    _useGpsLocation = true;
+    _gpsLatitude = latitude;
+    _gpsLongitude = longitude;
+    _defaultCity = cityName;
+    await _box.put('useGpsLocation', true);
+    await _box.put('gpsLatitude', latitude);
+    await _box.put('gpsLongitude', longitude);
+    await _box.put(StorageKeys.keyDefaultCity, cityName);
+    notifyListeners();
+    AppLogger.info('GPS location set: $latitude, $longitude ($cityName)');
+  }
+
+  Future<void> disableGpsLocation() async {
+    _useGpsLocation = false;
+    await _box.put('useGpsLocation', false);
     notifyListeners();
   }
 

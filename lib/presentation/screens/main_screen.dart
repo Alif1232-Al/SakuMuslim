@@ -116,12 +116,21 @@ class _HomeTabState extends State<_HomeTab> {
     try {
       final settings = context.read<SettingsProvider>();
       final dio = Dio();
-      final response = await dio.get(
-        '${ApiEndpoints.prayerTimeBaseUrl}/timingsByCity'
-        '?city=${Uri.encodeComponent(settings.defaultCity)}'
-        '&country=Indonesia'
-        '&method=${settings.calculationMethod}',
-      );
+      String url;
+
+      if (settings.useGpsLocation && settings.gpsLatitude != 0 && settings.gpsLongitude != 0) {
+        url = '${ApiEndpoints.prayerTimeBaseUrl}/timings'
+            '?latitude=${settings.gpsLatitude}'
+            '&longitude=${settings.gpsLongitude}'
+            '&method=${settings.calculationMethod}';
+      } else {
+        url = '${ApiEndpoints.prayerTimeBaseUrl}/timingsByCity'
+            '?city=${Uri.encodeComponent(settings.defaultCity)}'
+            '&country=Indonesia'
+            '&method=${settings.calculationMethod}';
+      }
+
+      final response = await dio.get(url);
 
       if (response.statusCode == 200 && mounted) {
         final timings = response.data['data']['timings'];

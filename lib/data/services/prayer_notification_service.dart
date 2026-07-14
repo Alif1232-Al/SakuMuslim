@@ -71,10 +71,22 @@ class PrayerNotificationService {
       final method = settingsProvider?.calculationMethod ?? 20;
 
       final dio = Dio();
-      final response = await dio.get(
-        '${ApiEndpoints.prayerTimeBaseUrl}/timingsByCity'
-        '?city=${Uri.encodeComponent(city)}&country=Indonesia&method=$method',
-      );
+      String url;
+
+      if (settingsProvider != null &&
+          settingsProvider.useGpsLocation &&
+          settingsProvider.gpsLatitude != 0 &&
+          settingsProvider.gpsLongitude != 0) {
+        url = '${ApiEndpoints.prayerTimeBaseUrl}/timings'
+            '?latitude=${settingsProvider.gpsLatitude}'
+            '&longitude=${settingsProvider.gpsLongitude}'
+            '&method=$method';
+      } else {
+        url = '${ApiEndpoints.prayerTimeBaseUrl}/timingsByCity'
+            '?city=${Uri.encodeComponent(city)}&country=Indonesia&method=$method';
+      }
+
+      final response = await dio.get(url);
 
       if (response.statusCode == 200) {
         final timings = response.data['data']['timings'];
