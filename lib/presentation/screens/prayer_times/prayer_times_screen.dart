@@ -648,36 +648,71 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   bool _isCurrentPrayer(String name) {
     if (_prayerTimes == null) return false;
     final now = DateTime.now();
-    final currentTime =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    final times = _prayerTimes!.entries.toList();
-    final currentIndex = times.indexWhere((e) => e.key == name);
-    if (currentIndex == -1) return false;
-    final currentPrayerTime = times[currentIndex].value;
+    final hh = now.hour;
+    final mm = now.minute;
+    final currentMinutes = hh * 60 + mm;
 
-    if (name == 'Isya') return currentTime.compareTo(currentPrayerTime) >= 0;
+    int toMinutes(String t) {
+      final p = t.split(':');
+      if (p.length != 2) return -1;
+      return (int.tryParse(p[0]) ?? 0) * 60 + (int.tryParse(p[1]) ?? 0);
+    }
+
+    final subuh = toMinutes(_prayerTimes!['Subuh'] ?? '');
+    final terbit = toMinutes(_prayerTimes!['Terbit'] ?? '');
+    final dzuhur = toMinutes(_prayerTimes!['Dzuhur'] ?? '');
+    final ashar = toMinutes(_prayerTimes!['Ashar'] ?? '');
+    final maghrib = toMinutes(_prayerTimes!['Maghrib'] ?? '');
+    final isya = toMinutes(_prayerTimes!['Isya'] ?? '');
+
+    if (subuh == -1) return false;
+
+    // After Isya (19:07+) or before midnight → Isya active
+    if (name == 'Isya' && isya != -1) {
+      return currentMinutes >= isya;
+    }
+
+    // Midnight (00:00) until Subuh → Subuh active
     if (name == 'Subuh') {
-      final terbitIndex = times.indexWhere((e) => e.key == 'Terbit');
-      if (terbitIndex != -1) {
-        return currentTime.compareTo('00:00') >= 0 && currentTime.compareTo(times[terbitIndex].value) < 0;
-      }
-      return currentTime.compareTo('00:00') >= 0 && currentTime.compareTo('07:00') < 0;
-    }
-    if (name == 'Terbit') {
-      final subuhIndex = times.indexWhere((e) => e.key == 'Subuh');
-      if (subuhIndex != -1) {
-        return currentTime.compareTo(times[subuhIndex].value) >= 0 &&
-            currentTime.compareTo(currentPrayerTime) < 0;
-      }
-      return false;
+      return currentMinutes >= 0 && currentMinutes < subuh;
     }
 
-    final nextIndex = currentIndex + 1;
-    if (nextIndex < times.length) {
-      return currentTime.compareTo(currentPrayerTime) >= 0 &&
-          currentTime.compareTo(times[nextIndex].value) < 0;
+    // Subuh until Terbit → Subuh active
+    if (name == 'Subuh') {
+      return currentMinutes >= subuh && currentMinutes < terbit;
     }
-    return currentTime.compareTo(currentPrayerTime) >= 0;
+
+    // Terbit until Dzuhur → Terbit active
+    if (name == 'Terbit') {
+      if (terbit == -1 || dzuhur == -1) return false;
+      return currentMinutes >= terbit && currentMinutes < dzuhur;
+    }
+
+    // Dzuhur until Ashar → Dzuhur active
+    if (name == 'Dzuhur') {
+      if (dzuhur == -1 || ashar == -1) return false;
+      return currentMinutes >= dzuhur && currentMinutes < ashar;
+    }
+
+    // Ashar until Maghrib → Ashar active
+    if (name == 'Ashar') {
+      if (ashar == -1 || maghrib == -1) return false;
+      return currentMinutes >= ashar && currentMinutes < maghrib;
+    }
+
+    // Maghrib until Isya → Maghrib active
+    if (name == 'Maghrib') {
+      if (maghrib == -1 || isya == -1) return false;
+      return currentMinutes >= maghrib && currentMinutes < isya;
+    }
+
+    // After Isya → Isya active
+    if (name == 'Isya') {
+      if (isya == -1) return false;
+      return currentMinutes >= isya;
+    }
+
+    return false;
   }
 
   IconData _getPrayerIcon(String name) {

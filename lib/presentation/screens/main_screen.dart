@@ -164,30 +164,60 @@ class _HomeTabState extends State<_HomeTab> {
     if (_prayerTimes == null) return 'Memuat jadwal...';
 
     final now = DateTime.now();
-    final hhmm = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final hh = now.hour;
+    final mm = now.minute;
+    final currentMinutes = hh * 60 + mm;
 
-    final order = ['Subuh', 'Terbit', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya'];
-    for (final name in order) {
-      final time = _prayerTimes![name];
-      if (time != null && hhmm.compareTo(time) < 0) {
-        return '$name • ${_countdown(now, time)}';
-      }
+    int toMinutes(String t) {
+      final p = t.split(':');
+      if (p.length != 2) return -1;
+      return (int.tryParse(p[0]) ?? 0) * 60 + (int.tryParse(p[1]) ?? 0);
     }
-    return 'Isya telah lewat';
+
+    final subuh = toMinutes(_prayerTimes!['Subuh'] ?? '');
+    final terbit = toMinutes(_prayerTimes!['Terbit'] ?? '');
+    final dzuhur = toMinutes(_prayerTimes!['Dzuhur'] ?? '');
+    final ashar = toMinutes(_prayerTimes!['Ashar'] ?? '');
+    final maghrib = toMinutes(_prayerTimes!['Maghrib'] ?? '');
+    final isya = toMinutes(_prayerTimes!['Isya'] ?? '');
+
+    if (subuh == -1) return 'Memuat jadwal...';
+
+    // Before Subuh → next is Subuh
+    if (currentMinutes < subuh) {
+      return 'Subuh • ${_countdownMinutes(currentMinutes, subuh)}';
+    }
+    // Before Terbit → next is Terbit
+    if (terbit != -1 && currentMinutes < terbit) {
+      return 'Terbit • ${_countdownMinutes(currentMinutes, terbit)}';
+    }
+    // Before Dzuhur → next is Dzuhur
+    if (dzuhur != -1 && currentMinutes < dzuhur) {
+      return 'Dzuhur • ${_countdownMinutes(currentMinutes, dzuhur)}';
+    }
+    // Before Ashar → next is Ashar
+    if (ashar != -1 && currentMinutes < ashar) {
+      return 'Ashar • ${_countdownMinutes(currentMinutes, ashar)}';
+    }
+    // Before Maghrib → next is Maghrib
+    if (maghrib != -1 && currentMinutes < maghrib) {
+      return 'Maghrib • ${_countdownMinutes(currentMinutes, maghrib)}';
+    }
+    // Before Isya → next is Isya
+    if (isya != -1 && currentMinutes < isya) {
+      return 'Isya • ${_countdownMinutes(currentMinutes, isya)}';
+    }
+    // After Isya → next is Subuh tomorrow
+    final subuhTomorrow = subuh + 24 * 60;
+    return 'Subuh • ${_countdownMinutes(currentMinutes, subuhTomorrow)}';
   }
 
-  String _countdown(DateTime now, String target) {
-    final parts = target.split(':');
-    if (parts.length != 2) return '';
-    final h = int.tryParse(parts[0]) ?? 0;
-    final m = int.tryParse(parts[1]) ?? 0;
-    var targetDt = DateTime(now.year, now.month, now.day, h, m);
-    if (targetDt.isBefore(now)) targetDt = targetDt.add(const Duration(days: 1));
-    final diff = targetDt.difference(now);
-    final hours = diff.inHours;
-    final mins = diff.inMinutes % 60;
-    if (hours > 0) return '${hours}j ${mins}m lagi';
-    return '${mins}m lagi';
+  String _countdownMinutes(int from, int to) {
+    final diff = to - from;
+    final h = diff ~/ 60;
+    final m = diff % 60;
+    if (h > 0) return '${h}j ${m}m lagi';
+    return '${m}m lagi';
   }
 
   @override
