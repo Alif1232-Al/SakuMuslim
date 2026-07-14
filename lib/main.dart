@@ -25,7 +25,17 @@ void main() async {
   await Hive.initFlutter();
   await Hive.openBox('sakumuslim_user_preferences');
   await Hive.openBox('sakumuslim_bookmarks');
-  await Hive.openBox('sakumuslim_quran_cache');
+  final quranCacheBox = await Hive.openBox('sakumuslim_quran_cache');
+
+  // Clear stale Quran cache (v1.0.1 fix: translations were lost in cached data)
+  const cacheVersionKey = 'cache_version';
+  const currentCacheVersion = 2;
+  final storedVersion = quranCacheBox.get(cacheVersionKey, defaultValue: 0);
+  if (storedVersion < currentCacheVersion) {
+    await quranCacheBox.clear();
+    await quranCacheBox.put(cacheVersionKey, currentCacheVersion);
+    AppLogger.info('Quran cache cleared (version update)');
+  }
 
   await AppLogger.init();
   AppLogger.info('SakuMuslim v1.0.0 starting...');

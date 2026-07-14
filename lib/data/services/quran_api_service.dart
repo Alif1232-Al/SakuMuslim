@@ -13,7 +13,6 @@ class QuranApiService {
     receiveTimeout: const Duration(seconds: 15),
   ));
 
-  /// Fetch all 114 surahs
   Future<List<Surah>> getAllSurah() async {
     try {
       AppLogger.info('Fetching all surahs...');
@@ -36,45 +35,43 @@ class QuranApiService {
     }
   }
 
-  /// Fetch surah detail with ayats (Arabic + Translation)
   Future<SurahDetailResponse> getSurahDetail(int surahNumber) async {
     try {
       AppLogger.info('Fetching surah detail: $surahNumber');
 
-      // Fetch Arabic text and translation in parallel
-      final results = await Future.wait([
-        _dio.get('/surah/$surahNumber'),
-        _dio.get('/surah/$surahNumber/id.indonesian'),
-      ]);
+      final arabicResponse = await _dio.get('/surah/$surahNumber');
 
-      final arabicResponse = results[0];
-      final translationResponse = results[1];
-
-      if (arabicResponse.statusCode == 200 && translationResponse.statusCode == 200) {
-        final arabicData = arabicResponse.data['data'];
-        final translationData = translationResponse.data['data'];
-
-        final surah = Surah.fromJson(arabicData);
-
-        // Combine Arabic and translation
-        final arabicAyahs = arabicData['ayahs'] as List;
-        final translationAyahs = translationData['ayahs'] as List;
-
-        final ayats = <Ayat>[];
-        for (int i = 0; i < arabicAyahs.length; i++) {
-          final arabicAyah = arabicAyahs[i];
-          final translationText = i < translationAyahs.length
-              ? translationAyahs[i]['text'] ?? ''
-              : '';
-
-          ayats.add(Ayat.fromJson(arabicAyah, translation: translationText));
-        }
-
-        AppLogger.info('Fetched surah ${surah.nameLatin} with ${ayats.length} ayats');
-        return SurahDetailResponse(surah: surah, ayats: ayats);
-      } else {
+      if (arabicResponse.statusCode != 200) {
         throw Exception('Failed to load surah detail');
       }
+
+      final arabicData = arabicResponse.data['data'];
+      final surah = Surah.fromJson(arabicData);
+      final arabicAyahs = arabicData['ayahs'] as List;
+
+      List<dynamic>? translationAyahs;
+      try {
+        final translationResponse = await _dio.get('/surah/$surahNumber/id.indonesian');
+        if (translationResponse.statusCode == 200) {
+          final translationData = translationResponse.data['data'];
+          translationAyahs = translationData['ayahs'] as List?;
+        }
+      } catch (e) {
+        AppLogger.error('Translation fetch failed for surah $surahNumber: $e');
+      }
+
+      final ayats = <Ayat>[];
+      for (int i = 0; i < arabicAyahs.length; i++) {
+        final arabicAyah = arabicAyahs[i];
+        final translationText = (translationAyahs != null && i < translationAyahs.length)
+            ? translationAyahs[i]['text'] ?? ''
+            : '';
+
+        ayats.add(Ayat.fromJson(arabicAyah, translation: translationText));
+      }
+
+      AppLogger.info('Fetched surah ${surah.nameLatin} with ${ayats.length} ayats (translation: ${translationAyahs != null ? 'yes' : 'no'})');
+      return SurahDetailResponse(surah: surah, ayats: ayats);
     } on DioException catch (e) {
       AppLogger.error('Dio error fetching surah detail: ${e.message}', e);
       throw Exception('Network error: ${e.message}');
@@ -85,7 +82,6 @@ class QuranApiService {
   }
 }
 
-/// Response class for surah detail
 class SurahDetailResponse {
   final Surah surah;
   final List<Ayat> ayats;

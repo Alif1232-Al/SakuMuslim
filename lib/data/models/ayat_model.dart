@@ -16,11 +16,12 @@ class Ayat {
   });
 
   factory Ayat.fromJson(Map<String, dynamic> json, {String? translation}) {
+    final cachedTranslation = json['textTranslation'] as String?;
     return Ayat(
       numberInSurah: json['numberInSurah'] ?? 0,
       numberInQuran: json['number'] ?? 0,
       textArabic: json['text'] ?? '',
-      textTranslation: translation ?? '',
+      textTranslation: translation ?? cachedTranslation ?? '',
       juz: json['juz'] ?? 0,
       page: json['page'] ?? 0,
     );
