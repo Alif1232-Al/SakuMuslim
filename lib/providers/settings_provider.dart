@@ -9,7 +9,7 @@ class SettingsProvider extends ChangeNotifier {
   // ═══════════════════════════════════════════════════════
   // STATE
   // ═══════════════════════════════════════════════════════
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.light;
   ThemeMode get themeMode => _themeMode;
 
   double _fontSizeArabic = StorageKeys.defaultFontSizeArabic;
@@ -61,11 +61,11 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   void _loadSettings() {
-    final themeModeIndex = _box.get(StorageKeys.keyThemeMode, defaultValue: 0);
+    final themeModeIndex = _box.get(StorageKeys.keyThemeMode, defaultValue: 1);
     if (themeModeIndex is int && themeModeIndex < ThemeMode.values.length) {
       _themeMode = ThemeMode.values[themeModeIndex];
     } else {
-      _themeMode = ThemeMode.system;
+    _themeMode = ThemeMode.light;
     }
     _fontSizeArabic = _box.get(StorageKeys.keyFontSizeArabic, defaultValue: StorageKeys.defaultFontSizeArabic);
     _fontSizeTranslation = _box.get(StorageKeys.keyFontSizeTranslation, defaultValue: StorageKeys.defaultFontSizeTranslation);
@@ -178,7 +178,7 @@ class SettingsProvider extends ChangeNotifier {
     };
 
     await _box.putAll({
-      StorageKeys.keyThemeMode: 0,
+      StorageKeys.keyThemeMode: 1,
       StorageKeys.keyFontSizeArabic: StorageKeys.defaultFontSizeArabic,
       StorageKeys.keyFontSizeTranslation: StorageKeys.defaultFontSizeTranslation,
       StorageKeys.keyDefaultCity: StorageKeys.defaultCity,

@@ -76,3 +76,4 @@ app.*.map.json
 
 # prd.md - internal document, not for public
 prd.md
+.vercel

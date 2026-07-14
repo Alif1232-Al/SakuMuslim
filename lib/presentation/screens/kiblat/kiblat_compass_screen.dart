@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
@@ -21,10 +22,12 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
   bool _hasPermission = false;
   String? _error;
   StreamSubscription? _compassSubscription;
+  final bool _isWeb = kIsWeb;
 
-  // Kaaba coordinates
   static const double _kaabaLat = 21.4225;
   static const double _kaabaLng = 39.8262;
+
+  StreamSubscription<dynamic>? _webOrientationSubscription;
 
   @override
   void initState() {
@@ -35,12 +38,12 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
   @override
   void dispose() {
     _compassSubscription?.cancel();
+    _webOrientationSubscription?.cancel();
     super.dispose();
   }
 
   Future<void> _initCompass() async {
     try {
-      // Check location permission
       var status = await Permission.locationWhenInUse.status;
       if (status.isDenied) {
         status = await Permission.locationWhenInUse.request();
@@ -62,14 +65,12 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
         return;
       }
 
-      // Get current position
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
         ),
       );
 
-      // Calculate qibla direction
       _kiblatDirection = _calculateQiblaDirection(
         position.latitude,
         position.longitude,
@@ -77,19 +78,22 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
 
       AppLogger.info('Qibla direction: $_kiblatDirection');
 
-      // Listen to compass
-      _compassSubscription = FlutterCompass.events?.listen((event) {
-        if (mounted) {
-          setState(() {
-            _heading = event.heading;
-            _hasPermission = true;
-          });
-        }
-      });
+      if (_isWeb) {
+        _initWebCompass();
+      } else {
+        _compassSubscription = FlutterCompass.events?.listen((event) {
+          if (mounted) {
+            setState(() {
+              _heading = event.heading;
+              _hasPermission = true;
+            });
+          }
+        });
 
-      setState(() {
-        _hasPermission = true;
-      });
+        setState(() {
+          _hasPermission = true;
+        });
+      }
     } catch (e) {
       AppLogger.error('Error initializing compass: $e');
       setState(() {
@@ -99,21 +103,53 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
     }
   }
 
+  void _initWebCompass() {
+    try {
+      _setupWebCompassFallback();
+    } catch (e) {
+      AppLogger.error('Web compass not available: $e');
+      setState(() {
+        _hasPermission = true;
+        _heading = 0;
+      });
+    }
+  }
+
+  void _setupWebCompassFallback() {
+    _webCompassViaJs();
+  }
+
+  Future<void> _webCompassViaJs() async {
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted && _heading == null) {
+        setState(() {
+          _hasPermission = true;
+          _heading = 0;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _hasPermission = true;
+          _heading = 0;
+        });
+      }
+    }
+  }
+
   double _calculateQiblaDirection(double latitude, double longitude) {
-    // Convert to radians
     final latRad = _toRadians(latitude);
     final lngRad = _toRadians(longitude);
     final kaabaLatRad = _toRadians(_kaabaLat);
     final kaabaLngRad = _toRadians(_kaabaLng);
 
-    // Calculate bearing
     final dLng = kaabaLngRad - lngRad;
     final y = sin(dLng) * cos(kaabaLatRad);
     final x = cos(latRad) * sin(kaabaLatRad) -
         sin(latRad) * cos(kaabaLatRad) * cos(dLng);
     var bearing = atan2(y, x);
 
-    // Convert to degrees
     bearing = _toDegrees(bearing);
     bearing = (bearing + 360) % 360;
 
@@ -234,7 +270,7 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       decoration: BoxDecoration(
         color: AppColors.contentBackground(context),
-        borderRadius: BorderRadius.only(
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
@@ -243,7 +279,6 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // Direction info
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
@@ -270,16 +305,43 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
               ),
             ),
 
+            if (_isWeb) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.amber.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Colors.amber, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Kompas tidak tersedia di browser. Putar ponsel secara manual menghadap ${_kiblatDirection!.toStringAsFixed(0)}° dari Utara.',
+                        style: AppTextStyles.bodySmall(
+                          color: AppColors.textSecondary(context),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             const SizedBox(height: 32),
 
-            // Compass
             SizedBox(
               width: 280,
               height: 280,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Compass background
                   Container(
                     width: 280,
                     height: 280,
@@ -300,19 +362,16 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
                     ),
                   ),
 
-                  // Compass rose - rotates with heading
                   Transform.rotate(
-                    angle: -compassAngle,
+                    angle: _isWeb ? 0 : -compassAngle,
                     child: SizedBox(
                       width: 260,
                       height: 260,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Cardinal directions
                           ..._buildCardinalMarkers(),
 
-                          // North marker
                           Positioned(
                             top: 8,
                             child: Container(
@@ -335,9 +394,8 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
                     ),
                   ),
 
-                  // Qibla indicator - fixed position
                   Transform.rotate(
-                    angle: qiblaRelativeAngle,
+                    angle: _isWeb ? kiblatAngle : qiblaRelativeAngle,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -364,7 +422,6 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
                     ),
                   ),
 
-                  // Center dot
                   Container(
                     width: 10,
                     height: 10,
@@ -385,7 +442,6 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
 
             const SizedBox(height: 40),
 
-            // Instructions
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -406,7 +462,9 @@ class _KiblatCompassScreenState extends State<KiblatCompassScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Arahkan ponsel ke tanah dan putar hingga indikator masjid (atas) menunjuk ke arah kiblat',
+                      _isWeb
+                          ? 'Arahkan ponsel menghadap ${_kiblatDirection!.toStringAsFixed(0)}° dari utara untuk menghadap kiblat'
+                          : 'Arahkan ponsel ke tanah dan putar hingga indikator masjid (atas) menunjuk ke arah kiblat',
                       style: AppTextStyles.bodySmall(
                         color: AppColors.textSecondary(context),
                       ),
