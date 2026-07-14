@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../providers/settings_provider.dart';
+import '../../../data/services/prayer_notification_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -220,8 +221,11 @@ class SettingsScreen extends StatelessWidget {
         activeThumbColor: AppColors.primary,
         onChanged: (value) {
           settings.setNotificationsEnabled(value);
-          // Reschedule or cancel alarms based on new setting
-          // This will be handled when prayer times are fetched next
+          if (value) {
+            PrayerNotificationService.instance.fetchAndSchedule(settings: settings);
+          } else {
+            PrayerNotificationService.instance.cancelAll();
+          }
         },
       ),
     );
@@ -240,6 +244,9 @@ class SettingsScreen extends StatelessWidget {
         activeThumbColor: AppColors.primary,
         onChanged: (value) {
           settings.setPrayerEnabled(prayerName, value);
+          if (settings.notificationsEnabled) {
+            PrayerNotificationService.instance.fetchAndSchedule(settings: settings);
+          }
         },
       ),
     );

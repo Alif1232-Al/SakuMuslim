@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/quran_provider.dart';
+import '../../../providers/settings_provider.dart';
+import '../../../data/services/prayer_notification_service.dart';
 import 'quran/quran_index_screen.dart';
 import 'quran/surah_detail_screen.dart';
 import 'prayer_times/prayer_times_screen.dart';
@@ -99,7 +101,7 @@ class _HomeTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(),
+                _buildHeader(context),
                 _buildGreetingCard(),
                 _buildFeatureGrid(context, onNavigate),
                 _buildLastReadSection(context, onNavigate),
@@ -112,7 +114,7 @@ class _HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -139,20 +141,206 @@ class _HomeTab extends StatelessWidget {
             ),
           ],
         ),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.notifications_outlined,
-            color: Colors.white,
-            size: 24,
+        GestureDetector(
+          onTap: () => _showNotificationStatus(context),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.notifications_outlined,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
         ),
       ],
     );
+  }
+
+  void _showNotificationStatus(BuildContext context) {
+    final settings = context.read<SettingsProvider>();
+    final notificationService = PrayerNotificationService.instance;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.divider(context),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Icon(
+                  Icons.notifications_active,
+                  color: settings.notificationsEnabled
+                      ? AppColors.primary
+                      : AppColors.textSecondary(context),
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Notifikasi Sholat',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary(context),
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                      Text(
+                        settings.notificationsEnabled
+                            ? 'Aktif - Alarm 2 menit sebelum waktu sholat'
+                            : 'Nonaktif',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary(context),
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: settings.notificationsEnabled,
+                  activeThumbColor: AppColors.primary,
+                  onChanged: (value) {
+                    settings.setNotificationsEnabled(value);
+                    if (value) {
+                      notificationService.fetchAndSchedule(settings: settings);
+                    } else {
+                      notificationService.cancelAll();
+                    }
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (settings.notificationsEnabled) ...[
+              Text(
+                'Jadwal Aktif',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary(context),
+                  fontFamily: 'Poppins',
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...['Subuh', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya'].map(
+                (prayer) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _getPrayerIcon(prayer),
+                        size: 16,
+                        color: settings.isPrayerEnabled(prayer)
+                            ? AppColors.primary
+                            : AppColors.textSecondary(context).withValues(alpha: 0.4),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          prayer,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: settings.isPrayerEnabled(prayer)
+                                ? AppColors.textPrimary(context)
+                                : AppColors.textSecondary(context).withValues(alpha: 0.4),
+                            fontFamily: 'Poppins',
+                            decoration: settings.isPrayerEnabled(prayer)
+                                ? null
+                                : TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        settings.isPrayerEnabled(prayer)
+                            ? Icons.check_circle
+                            : Icons.cancel,
+                        size: 16,
+                        color: settings.isPrayerEnabled(prayer)
+                            ? AppColors.success
+                            : AppColors.error.withValues(alpha: 0.5),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  onNavigate(2);
+                },
+                style: TextButton.styleFrom(
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(
+                  'Lihat Jadwal Sholat',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getPrayerIcon(String name) {
+    switch (name) {
+      case 'Subuh':
+        return Icons.nightlight_round;
+      case 'Dzuhur':
+        return Icons.wb_sunny;
+      case 'Ashar':
+        return Icons.wb_cloudy;
+      case 'Maghrib':
+        return Icons.wb_twilight;
+      case 'Isya':
+        return Icons.nights_stay;
+      default:
+        return Icons.notifications;
+    }
   }
 
   Widget _buildGreetingCard() {

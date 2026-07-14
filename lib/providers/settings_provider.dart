@@ -160,7 +160,7 @@ class SettingsProvider extends ChangeNotifier {
   // ═══════════════════════════════════════════════════════
 
   Future<void> resetToDefaults() async {
-    _themeMode = ThemeMode.system;
+    _themeMode = ThemeMode.light;
     _fontSizeArabic = StorageKeys.defaultFontSizeArabic;
     _fontSizeTranslation = StorageKeys.defaultFontSizeTranslation;
     _defaultCity = StorageKeys.defaultCity;
