@@ -19,22 +19,67 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   Map<String, String>? _prayerTimes;
   bool _isLoading = true;
   String? _error;
-  String _city = 'Jakarta';
+  late String _city;
+  late int _method;
+
+  static const Map<String, String> _cities = {
+    'Jakarta': 'Jakarta',
+    'Surabaya': 'Surabaya',
+    'Bandung': 'Bandung',
+    'Medan': 'Medan',
+    'Makassar': 'Makassar',
+    'Yogyakarta': 'Yogyakarta',
+    'Semarang': 'Semarang',
+    'Palembang': 'Palembang',
+    'Tangerang': 'Tangerang',
+    'Depok': 'Depok',
+    'Bekasi': 'Bekasi',
+    'Malang': 'Malang',
+    'Padang': 'Padang',
+    'Banjarmasin': 'Banjarmasin',
+    'Bogor': 'Bogor',
+    'Batam': 'Batam',
+    'Pekanbaru': 'Pekanbaru',
+    'Manado': 'Manado',
+    'Pontianak': 'Pontianak',
+    'Balikpapan': 'Balikpapan',
+    'Samarinda': 'Samarinda',
+    'Jambi': 'Jambi',
+    'Mataram': 'Mataram',
+    'Kupang': 'Kupang',
+    'Ambon': 'Ambon',
+    'Jayapura': 'Jayapura',
+    'Sorong': 'Sorong',
+    'Denpasar': 'Denpasar',
+    'Solo': 'Surakarta',
+  };
+
+  static const Map<int, String> _methods = {
+    1: 'MWL (Muslim World League)',
+    2: 'ISNA (North America)',
+    5: 'Egypt',
+    7: 'Karachi',
+    20: 'Kemenag RI',
+  };
 
   @override
   void initState() {
     super.initState();
-    _initCity();
+    _loadFromSettings();
+    _fetchPrayerTimes();
   }
 
-  void _initCity() {
+  void _loadFromSettings() {
     try {
       if (mounted) {
         final settings = context.read<SettingsProvider>();
         _city = settings.defaultCity;
+        _method = settings.calculationMethod;
       }
-    } catch (_) {}
-    _fetchPrayerTimes();
+    } catch (_) {
+      _city = 'Jakarta';
+      _method = 20;
+    }
   }
 
   Future<void> _fetchPrayerTimes() async {
@@ -44,29 +89,20 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     });
 
     try {
-      // Use settings for city and method if available
-      String city = _city;
-      int method = ApiEndpoints.methodKemenag;
-
-      try {
-        if (mounted) {
-          final settings = context.read<SettingsProvider>();
-          city = settings.defaultCity;
-          method = settings.calculationMethod;
-        }
-      } catch (_) {}
-
       final dio = Dio();
-      final response = await dio.get(
-        '${ApiEndpoints.prayerTimeBaseUrl}/timingsByCity'
-        '?city=$city'
-        '&country=Indonesia'
-        '&method=$method',
-      );
+      final url = '${ApiEndpoints.prayerTimeBaseUrl}/timingsByCity'
+          '?city=$_city'
+          '&country=Indonesia'
+          '&method=$_method';
+      AppLogger.info('Fetching prayer times: $url');
+
+      final response = await dio.get(url);
 
       if (response.statusCode == 200) {
         final data = response.data['data'];
         final timings = data['timings'];
+        final meta = data['meta'];
+        final apiTimezone = meta['timezone'] ?? '';
 
         setState(() {
           _prayerTimes = {
@@ -80,7 +116,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           _isLoading = false;
         });
 
-        // Schedule prayer alarms
         if (mounted) {
           final settings = context.read<SettingsProvider>();
           PrayerNotificationService.instance.schedulePrayerTimes(
@@ -89,21 +124,34 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           );
         }
 
-        AppLogger.info('Prayer times loaded for $_city');
+        AppLogger.info('Prayer times loaded for $_city (tz: $apiTimezone)');
       }
     } catch (e) {
       setState(() {
-        _error = 'Gagal memuat jadwal sholat';
+        _error = 'Gagal memuat jadwal sholat untuk $_city';
         _isLoading = false;
       });
-      AppLogger.error('Error fetching prayer times: $e');
+      AppLogger.error('Error fetching prayer times for $_city: $e');
     }
   }
 
   String _formatTime(String time) {
-    // Remove timezone info and format
-    final cleanTime = time.replaceAll(RegExp(r'\s*\(.*\)'), '').trim();
-    return cleanTime;
+    return time.replaceAll(RegExp(r'\s*\(.*\)'), '').trim();
+  }
+
+  void _onCityChanged(String? newCity) {
+    if (newCity == null || newCity == _city) return;
+    setState(() => _city = newCity);
+    // Save to settings so it persists
+    context.read<SettingsProvider>().setDefaultCity(newCity);
+    _fetchPrayerTimes();
+  }
+
+  void _onMethodChanged(int? newMethod) {
+    if (newMethod == null || newMethod == _method) return;
+    setState(() => _method = newMethod);
+    context.read<SettingsProvider>().setCalculationMethod(newMethod);
+    _fetchPrayerTimes();
   }
 
   @override
@@ -119,16 +167,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           bottom: false,
           child: Column(
             children: [
-              // App Bar
               _buildAppBar(),
-
-              // City Selector
               _buildCitySelector(),
-
-              // Prayer Times List
-              Expanded(
-                child: _buildContent(),
-              ),
+              _buildMethodSelector(),
+              Expanded(child: _buildContent()),
             ],
           ),
         ),
@@ -143,10 +185,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(
-              Icons.arrow_back_ios,
-              color: Colors.white,
-            ),
+            icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           ),
           Expanded(
             child: Text(
@@ -163,42 +202,72 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
 
   Widget _buildCitySelector() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.location_on,
-            color: Colors.white,
-            size: 20,
-          ),
+          const Icon(Icons.location_on, color: Colors.white, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: _city,
+                value: _cities.containsKey(_city) ? _city : null,
+                hint: Text(
+                  _city,
+                  style: AppTextStyles.bodyMedium(color: Colors.white),
+                ),
                 dropdownColor: AppColors.secondary,
                 style: AppTextStyles.bodyMedium(color: Colors.white),
                 isExpanded: true,
-                items: const [
-                  DropdownMenuItem(value: 'Jakarta', child: Text('Jakarta')),
-                  DropdownMenuItem(value: 'Surabaya', child: Text('Surabaya')),
-                  DropdownMenuItem(value: 'Bandung', child: Text('Bandung')),
-                  DropdownMenuItem(value: 'Medan', child: Text('Medan')),
-                  DropdownMenuItem(value: 'Makassar', child: Text('Makassar')),
-                  DropdownMenuItem(value: 'Yogyakarta', child: Text('Yogyakarta')),
-                  DropdownMenuItem(value: 'Semarang', child: Text('Semarang')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _city = value);
-                    _fetchPrayerTimes();
-                  }
-                },
+                items: _cities.entries.map((entry) {
+                  return DropdownMenuItem(
+                    value: entry.key,
+                    child: Text(entry.value),
+                  );
+                }).toList(),
+                onChanged: _onCityChanged,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMethodSelector() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.calculate, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: _method,
+                dropdownColor: AppColors.secondary,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontFamily: 'Poppins',
+                ),
+                isExpanded: true,
+                items: _methods.entries.map((entry) {
+                  return DropdownMenuItem(
+                    value: entry.key,
+                    child: Text(entry.value, style: const TextStyle(fontSize: 12)),
+                  );
+                }).toList(),
+                onChanged: _onMethodChanged,
               ),
             ),
           ),
@@ -218,35 +287,35 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
 
     if (_error != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.white.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: AppTextStyles.h4(color: Colors.white),
-            ),
-            const SizedBox(height: 16),
-              ElevatedButton(
-              onPressed: _fetchPrayerTimes,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.surface(context),
-                foregroundColor: AppColors.secondary,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.white.withValues(alpha: 0.5)),
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                style: AppTextStyles.h4(color: Colors.white),
+                textAlign: TextAlign.center,
               ),
-              child: const Text('Coba Lagi'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _fetchPrayerTimes,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.surface(context),
+                  foregroundColor: AppColors.secondary,
+                ),
+                child: const Text('Coba Lagi'),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       decoration: BoxDecoration(
         color: AppColors.contentBackground(context),
         borderRadius: BorderRadius.circular(24),
@@ -289,7 +358,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       ),
       child: Row(
         children: [
-          // Prayer icon
           Container(
             width: 40,
             height: 40,
@@ -308,8 +376,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
             ),
           ),
           const SizedBox(width: 16),
-
-          // Prayer name
           Expanded(
             child: Text(
               name,
@@ -320,8 +386,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
               ),
             ),
           ),
-
-          // Prayer time
           Text(
             time,
             style: AppTextStyles.prayerTime(
@@ -330,7 +394,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                   : AppColors.textPrimary(context),
             ),
           ),
-
           if (isCurrentPrayer) ...[
             const SizedBox(width: 8),
             Container(
@@ -354,7 +417,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     if (_prayerTimes == null) return false;
 
     final now = DateTime.now();
-    final currentTime = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final currentTime =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
     final times = _prayerTimes!.entries.toList();
     final currentIndex = times.indexWhere((e) => e.key == name);
@@ -363,12 +427,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
 
     final currentPrayerTime = times[currentIndex].value;
 
-    // Isya: highlight from Isya until midnight (00:00)
     if (name == 'Isya') {
       return currentTime.compareTo(currentPrayerTime) >= 0;
     }
 
-    // Subuh: highlight from midnight (00:00) until Terbit
     if (name == 'Subuh') {
       final terbitIndex = times.indexWhere((e) => e.key == 'Terbit');
       if (terbitIndex != -1) {
@@ -376,12 +438,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
         return currentTime.compareTo('00:00') >= 0 &&
             currentTime.compareTo(terbitTime) < 0;
       }
-      // If Terbit not found, highlight Subuh from 00:00 to 07:00
       return currentTime.compareTo('00:00') >= 0 &&
           currentTime.compareTo('07:00') < 0;
     }
 
-    // For Terbit: highlight from Subuh to Terbit
     if (name == 'Terbit') {
       final subuhIndex = times.indexWhere((e) => e.key == 'Subuh');
       if (subuhIndex != -1) {
@@ -392,7 +452,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       return false;
     }
 
-    // Dzuhur, Ashar, Maghrib: highlight from this prayer to next
     final nextIndex = currentIndex + 1;
     if (nextIndex < times.length) {
       final nextPrayerTime = times[nextIndex].value;

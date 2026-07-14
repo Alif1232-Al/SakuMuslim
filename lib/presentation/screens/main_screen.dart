@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/constants/api_endpoints.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../providers/quran_provider.dart';
 import '../../../providers/settings_provider.dart';
 import '../../../data/services/prayer_notification_service.dart';
@@ -80,10 +84,102 @@ class MainScreenState extends State<MainScreen> {
   }
 }
 
-class _HomeTab extends StatelessWidget {
+class _HomeTab extends StatefulWidget {
   final ValueChanged<int> onNavigate;
 
   const _HomeTab({required this.onNavigate});
+
+  @override
+  State<_HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<_HomeTab> {
+  Map<String, String>? _prayerTimes;
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPrayerTimes();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchPrayerTimes() async {
+    try {
+      final settings = context.read<SettingsProvider>();
+      final dio = Dio();
+      final response = await dio.get(
+        '${ApiEndpoints.prayerTimeBaseUrl}/timingsByCity'
+        '?city=${Uri.encodeComponent(settings.defaultCity)}'
+        '&country=Indonesia'
+        '&method=${settings.calculationMethod}',
+      );
+
+      if (response.statusCode == 200 && mounted) {
+        final timings = response.data['data']['timings'];
+        setState(() {
+          _prayerTimes = {
+            'Subuh': _fmt(timings['Fajr']),
+            'Terbit': _fmt(timings['Sunrise']),
+            'Dzuhur': _fmt(timings['Dhuhr']),
+            'Ashar': _fmt(timings['Asr']),
+            'Maghrib': _fmt(timings['Maghrib']),
+            'Isya': _fmt(timings['Isha']),
+          };
+        });
+      }
+    } catch (e) {
+      AppLogger.error('Home prayer fetch error: $e');
+    }
+  }
+
+  String _fmt(String t) => t.replaceAll(RegExp(r'\s*\(.*\)'), '').trim();
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 11) return 'Selamat Pagi';
+    if (hour < 15) return 'Selamat Siang';
+    if (hour < 18) return 'Selamat Sore';
+    return 'Selamat Malam';
+  }
+
+  String _getNextPrayerInfo() {
+    if (_prayerTimes == null) return 'Memuat jadwal...';
+
+    final now = DateTime.now();
+    final hhmm = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    final order = ['Subuh', 'Terbit', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya'];
+    for (final name in order) {
+      final time = _prayerTimes![name];
+      if (time != null && hhmm.compareTo(time) < 0) {
+        return '$name • ${_countdown(now, time)}';
+      }
+    }
+    return 'Isya telah lewat';
+  }
+
+  String _countdown(DateTime now, String target) {
+    final parts = target.split(':');
+    if (parts.length != 2) return '';
+    final h = int.tryParse(parts[0]) ?? 0;
+    final m = int.tryParse(parts[1]) ?? 0;
+    var targetDt = DateTime(now.year, now.month, now.day, h, m);
+    if (targetDt.isBefore(now)) targetDt = targetDt.add(const Duration(days: 1));
+    final diff = targetDt.difference(now);
+    final hours = diff.inHours;
+    final mins = diff.inMinutes % 60;
+    if (hours > 0) return '${hours}j ${mins}m lagi';
+    return '${mins}m lagi';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,9 +187,7 @@ class _HomeTab extends StatelessWidget {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: AppColors.homeGradient(context),
-        ),
+        decoration: BoxDecoration(gradient: AppColors.homeGradient(context)),
         child: SafeArea(
           bottom: false,
           child: SingleChildScrollView(
@@ -102,9 +196,9 @@ class _HomeTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context),
-                _buildGreetingCard(),
-                _buildFeatureGrid(context, onNavigate),
-                _buildLastReadSection(context, onNavigate),
+                _buildNextPrayerCard(),
+                _buildFeatureGrid(context),
+                _buildLastReadSection(context),
                 const SizedBox(height: 24),
               ],
             ),
@@ -132,7 +226,7 @@ class _HomeTab extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Asisten Ibadah Anda',
+              _getGreeting(),
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.white.withValues(alpha: 0.8),
@@ -149,14 +243,113 @@ class _HomeTab extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.notifications_outlined,
-              color: Colors.white,
-              size: 24,
-            ),
+            child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildNextPrayerCard() {
+    final settings = context.read<SettingsProvider>();
+    final nextPrayer = _getNextPrayerInfo();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Center(
+                  child: Icon(Icons.mosque, color: Colors.white, size: 28),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Assalamu\'alaikum',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      settings.defaultCity,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.access_time, color: Colors.white.withValues(alpha: 0.9), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    nextPrayer,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => widget.onNavigate(2),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'Lihat Semua',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 12,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -281,9 +474,7 @@ class _HomeTab extends StatelessWidget {
                         ),
                       ),
                       Icon(
-                        settings.isPrayerEnabled(prayer)
-                            ? Icons.check_circle
-                            : Icons.cancel,
+                        settings.isPrayerEnabled(prayer) ? Icons.check_circle : Icons.cancel,
                         size: 16,
                         color: settings.isPrayerEnabled(prayer)
                             ? AppColors.success
@@ -300,13 +491,11 @@ class _HomeTab extends StatelessWidget {
               child: TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  onNavigate(2);
+                  widget.onNavigate(2);
                 },
                 style: TextButton.styleFrom(
                   backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 child: Text(
@@ -343,104 +532,43 @@ class _HomeTab extends StatelessWidget {
     }
   }
 
-  Widget _buildGreetingCard() {
-    return Container(
-      margin: const EdgeInsets.only(top: 20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Center(
-              child: Icon(Icons.mosque, color: Colors.white, size: 32),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Assalamu\'alaikum',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Semoga hari Anda penuh berkah',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeatureGrid(BuildContext context, ValueChanged<int> onNavigate) {
+  Widget _buildFeatureGrid(BuildContext context) {
     final features = [
       _FeatureItem(
         icon: Icons.menu_book_rounded,
         title: 'Al-Qur\'an',
         gradient: const LinearGradient(colors: [Color(0xFF1565C0), Color(0xFF42A5F5)]),
-        onTap: () => onNavigate(1),
+        onTap: () => widget.onNavigate(1),
       ),
       _FeatureItem(
         icon: Icons.access_time_rounded,
         title: 'Sholat',
         gradient: const LinearGradient(colors: [Color(0xFF00897B), Color(0xFF26A69A)]),
-        onTap: () => onNavigate(2),
+        onTap: () => widget.onNavigate(2),
       ),
       _FeatureItem(
         icon: Icons.lens_blur_rounded,
         title: 'Tasbih',
         gradient: const LinearGradient(colors: [Color(0xFFC6A054), Color(0xFFE0C882)]),
-        onTap: () => onNavigate(3),
+        onTap: () => widget.onNavigate(3),
       ),
       _FeatureItem(
         icon: Icons.account_balance_rounded,
         title: 'Zakat',
         gradient: const LinearGradient(colors: [Color(0xFF5C6BC0), Color(0xFF7986CB)]),
-        onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const ZakatScreen(),
-        )),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ZakatScreen())),
       ),
       _FeatureItem(
         icon: Icons.auto_stories_rounded,
         title: 'Hadist',
         gradient: const LinearGradient(colors: [Color(0xFF8D6E63), Color(0xFFA1887F)]),
-        onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const HadithScreen(),
-        )),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HadithScreen())),
       ),
       _FeatureItem(
         icon: Icons.explore_rounded,
         title: 'Kiblat',
         gradient: const LinearGradient(colors: [Color(0xFF42A5F5), Color(0xFF64B5F6)]),
-        onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const KiblatCompassScreen(),
-        )),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KiblatCompassScreen())),
       ),
     ];
 
@@ -509,7 +637,7 @@ class _HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildLastReadSection(BuildContext context, ValueChanged<int> onNavigate) {
+  Widget _buildLastReadSection(BuildContext context) {
     return Consumer<QuranProvider>(
       builder: (context, quran, child) {
         final surahName = quran.lastReadSurah?.nameLatin ?? 'Belum ada';
@@ -534,7 +662,7 @@ class _HomeTab extends StatelessWidget {
                   ),
                 ),
                 TextButton(
-                  onPressed: () => onNavigate(1),
+                  onPressed: () => widget.onNavigate(1),
                   child: Text(
                     'Lihat Semua',
                     style: TextStyle(
@@ -549,8 +677,7 @@ class _HomeTab extends StatelessWidget {
             GestureDetector(
               onTap: surahName != 'Belum ada'
                   ? () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => SurahDetailScreen(surahNumber: surahNum),
-                    ))
+                      builder: (_) => SurahDetailScreen(surahNumber: surahNum)))
                   : null,
               child: Container(
                 padding: const EdgeInsets.all(16),
@@ -614,11 +741,7 @@ class _HomeTab extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 16,
-                      color: const Color(0xFF1565C0).withValues(alpha: 0.5),
-                    ),
+                    Icon(Icons.arrow_forward_ios, size: 16, color: const Color(0xFF1565C0).withValues(alpha: 0.5)),
                   ],
                 ),
               ),

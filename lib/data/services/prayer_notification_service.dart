@@ -73,7 +73,7 @@ class PrayerNotificationService {
       final dio = Dio();
       final response = await dio.get(
         '${ApiEndpoints.prayerTimeBaseUrl}/timingsByCity'
-        '?city=$city&country=Indonesia&method=$method',
+        '?city=${Uri.encodeComponent(city)}&country=Indonesia&method=$method',
       );
 
       if (response.statusCode == 200) {
