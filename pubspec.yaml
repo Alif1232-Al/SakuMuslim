@@ -1,0 +1,119 @@
+name: sakumuslim
+description: "SakuMuslim - Asisten Ibadah Muslim"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ═══════════════════════════════════════════════════════
+  # STATE MANAGEMENT
+  # ═══════════════════════════════════════════════════════
+  provider: ^6.1.2
+
+  # ═══════════════════════════════════════════════════════
+  # NETWORK
+  # ═══════════════════════════════════════════════════════
+  dio: ^5.7.0
+
+  # ═══════════════════════════════════════════════════════
+  # LOCAL STORAGE
+  # ═══════════════════════════════════════════════════════
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # ═══════════════════════════════════════════════════════
+  # ROUTING
+  # ═══════════════════════════════════════════════════════
+  # ═══════════════════════════════════════════════════════
+  # LOCATION & SENSORS (Mobile only)
+  # ═══════════════════════════════════════════════════════
+  geolocator: ^13.0.2
+  flutter_compass: ^0.8.0
+  permission_handler: ^11.3.1
+
+  # ═══════════════════════════════════════════════════════
+  # UTILS
+  # ═══════════════════════════════════════════════════════
+  intl: ^0.19.0
+  path_provider: ^2.1.5
+
+
+  # ═══════════════════════════════════════════════════════
+  # UI
+  # ═══════════════════════════════════════════════════════
+  flutter_svg: ^2.0.16
+
+  # ═══════════════════════════════════════════════════════
+  # ALARM & NOTIFICATIONS
+  # ═══════════════════════════════════════════════════════
+  alarm: ^5.5.0
+
+  # ═══════════════════════════════════════════════════════
+  # ICONS
+  # ═══════════════════════════════════════════════════════
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.2
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  min_sdk_android: 21
+  android_12:
+    image_path: "assets/images/logo.png"
+    adaptive_icon_background: "#0D47A1"
+    adaptive_icon_foreground: "assets/images/logo.png"
+  windows:
+    generate: true
+    image_path: "assets/images/logo.png"
+    icon_size: 48
+  web:
+    generate: true
+    image_path: "assets/images/logo.png"
+    image_size: 512
+    background_color: "#0D47A1"
+    theme_color: "#0D47A1"
+
+flutter:
+  uses-material-design: true
+
+  # ═══════════════════════════════════════════════════════
+  # ASSETS
+  # ═══════════════════════════════════════════════════════
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/lottie/
+    - assets/audio/
+
+  # ═══════════════════════════════════════════════════════
+  # FONTS
+  # ═══════════════════════════════════════════════════════
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-400.ttf
+          weight: 400
+        - asset: assets/fonts/Poppins-500.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-600.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-700.ttf
+          weight: 700
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700

@@ -1,0 +1,5 @@
+﻿This is a placeholder font file.
+Please download the actual Amiri font from:
+https://fonts.google.com/specimen/Amiri
+
+Required: Amiri-Regular.ttf (400 weight)

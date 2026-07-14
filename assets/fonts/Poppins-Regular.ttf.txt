@@ -1,0 +1,5 @@
+﻿This is a placeholder font file.
+Please download the actual Poppins font from:
+https://fonts.google.com/specimen/Poppins
+
+Required: Poppins-Regular.ttf (400 weight)
