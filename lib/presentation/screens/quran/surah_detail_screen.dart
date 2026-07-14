@@ -24,8 +24,6 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
   void initState() {
     super.initState();
     AppLogger.info('SurahDetailScreen loaded: ${widget.surahNumber}');
-
-    // Load surah detail after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<QuranProvider>();
       provider.loadSurahDetail(widget.surahNumber);
@@ -38,32 +36,22 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
     super.dispose();
   }
 
+  bool get _isBismillahSurah {
+    // Surah 1 (Al-Fatiha) has bismillah in ayat 1, Surah 9 (At-Tawbah) has none
+    return widget.surahNumber != 1 && widget.surahNumber != 9;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: AppColors.detailGradient(context),
-        ),
+        decoration: BoxDecoration(gradient: AppColors.detailGradient(context)),
         child: SafeArea(
           bottom: false,
           child: Column(
             children: [
-              // ═══════════════════════════════════════════════
-              // APP BAR
-              // ═══════════════════════════════════════════════
               _buildAppBar(),
-
-              // ═══════════════════════════════════════════════
-              // CONTENT
-              // ═══════════════════════════════════════════════
-              Expanded(
-                child: _buildContent(),
-              ),
-
-              // ═══════════════════════════════════════════════
-              // SETTINGS BAR
-              // ═══════════════════════════════════════════════
+              Expanded(child: _buildContent()),
               _buildSettingsBar(),
             ],
           ),
@@ -76,17 +64,13 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
     return Consumer<QuranProvider>(
       builder: (context, provider, child) {
         final surah = provider.currentSurah;
-
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
             children: [
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(
-                  Icons.arrow_back_ios,
-                  color: Colors.white,
-                ),
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
               ),
               Expanded(
                 child: Column(
@@ -97,7 +81,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
                     ),
                     if (surah != null)
                       Text(
-                        '${surah.revelationId} • ${surah.totalAyat} Ayat',
+                        '${surah.revelationId} \u2022 ${surah.totalAyat} Ayat',
                         style: AppTextStyles.caption(
                           color: Colors.white.withValues(alpha: 0.8),
                         ),
@@ -106,13 +90,8 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
                 ),
               ),
               IconButton(
-                onPressed: () {
-                  // TODO: Add bookmark functionality
-                },
-                icon: const Icon(
-                  Icons.bookmark_border,
-                  color: Colors.white,
-                ),
+                onPressed: () {},
+                icon: const Icon(Icons.bookmark_border, color: Colors.white),
               ),
             ],
           ),
@@ -137,16 +116,9 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.white.withValues(alpha: 0.5),
-                ),
+                Icon(Icons.error_outline, size: 64, color: Colors.white.withValues(alpha: 0.5)),
                 const SizedBox(height: 16),
-                Text(
-                  'Gagal memuat ayat',
-                  style: AppTextStyles.h4(color: Colors.white),
-                ),
+                Text('Gagal memuat ayat', style: AppTextStyles.h4(color: Colors.white)),
                 const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: () => provider.loadSurahDetail(widget.surahNumber),
@@ -165,17 +137,21 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
           decoration: BoxDecoration(
             color: AppColors.contentBackground(context),
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
             ),
           ),
           child: ListView.builder(
             controller: _scrollController,
-            padding: const EdgeInsets.all(16),
-            itemCount: provider.ayats.length,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            itemCount: provider.ayats.length + (_isBismillahSurah ? 1 : 0),
             itemBuilder: (context, index) {
-              final ayat = provider.ayats[index];
-              return _buildAyatCard(ayat);
+              if (_isBismillahSurah && index == 0) {
+                return _buildBismillah();
+              }
+              final ayatIndex = _isBismillahSurah ? index - 1 : index;
+              final ayat = provider.ayats[ayatIndex];
+              return _buildAyatCard(ayat, ayatIndex);
             },
           ),
         );
@@ -183,134 +159,234 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
     );
   }
 
-  Widget _buildAyatCard(Ayat ayat) {
+  Widget _buildBismillah() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.fromLTRB(0, 8, 0, 16),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withValues(alpha: 0.06),
+            AppColors.primary.withValues(alpha: 0.02),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.1),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Ornamental top
+          _buildOrnamentDivider(isTop: true),
+          const SizedBox(height: 16),
+          Text(
+            'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+            style: const TextStyle(
+              fontFamily: 'Amiri',
+              fontSize: 28,
+              color: Color(0xFF1565C0),
+              fontWeight: FontWeight.w700,
+              height: 2.0,
+            ),
+            textAlign: TextAlign.center,
+            textDirection: TextDirection.rtl,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Dengan nama Allah Yang Maha Pengasih lagi Maha Penyayang',
+            style: AppTextStyles.bodyMedium(
+              color: AppColors.textSecondary(context),
+              height: 1.6,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          _buildOrnamentDivider(isTop: false),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrnamentDivider({required bool isTop}) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  AppColors.primary.withValues(alpha: 0.0),
+                  AppColors.primary.withValues(alpha: 0.3),
+                  AppColors.primary.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Icon(
+            isTop ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+            color: AppColors.primary.withValues(alpha: 0.3),
+            size: 20,
+          ),
+        ),
+        Expanded(
+          child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  AppColors.primary.withValues(alpha: 0.0),
+                  AppColors.primary.withValues(alpha: 0.3),
+                  AppColors.primary.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAyatCard(Ayat ayat, int index) {
+    final isEven = index.isEven;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.cardBorder(context),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.08),
+            color: AppColors.primary.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Ayat header
+            Row(
+              children: [
+                // Ornamental ayat number
+                _buildAyatBadge(ayat.numberInSurah),
+                const Spacer(),
+                IconButton(
+                  onPressed: () {},
+                  icon: Icon(
+                    Icons.bookmark_border_rounded,
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    size: 22,
+                  ),
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Arabic text
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+              decoration: BoxDecoration(
+                color: isEven
+                    ? AppColors.primary.withValues(alpha: 0.03)
+                    : AppColors.primarySurface.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                ayat.textArabic,
+                style: AppTextStyles.arabic(
+                  size: _fontSize,
+                  color: AppColors.textPrimary(context),
+                ),
+                textAlign: TextAlign.right,
+                textDirection: TextDirection.rtl,
+              ),
+            ),
+
+            if (_showTranslation) ...[
+              const SizedBox(height: 16),
+              // Elegant divider
+              Row(
+                children: [
+                  Container(
+                    width: 3,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFFC6A054), Color(0xFFE0C882)],
+                      ),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      ayat.textTranslation,
+                      style: AppTextStyles.bodyMedium(
+                        color: AppColors.textSecondary(context),
+                        height: 1.7,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAyatBadge(int number) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary,
+            AppColors.primaryLight,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: AppColors.primary.withValues(alpha: 0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            // Optional: Add tap feedback
-          },
-          splashColor: AppColors.primary.withValues(alpha: 0.05),
-          highlightColor: AppColors.primary.withValues(alpha: 0.03),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Ayat number badge
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Number badge with gradient
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            AppColors.primary,
-                            AppColors.primaryLight,
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        '${ayat.numberInSurah}',
-                        style: AppTextStyles.label(color: Colors.white),
-                      ),
-                    ),
-                    // More options
-                    IconButton(
-                      onPressed: () {
-                        // TODO: Add share/bookmark functionality
-                      },
-                      icon: Icon(
-                        Icons.bookmark_border_rounded,
-                        color: AppColors.primary.withValues(alpha: 0.4),
-                        size: 22,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 20),
-
-                // Arabic text - with elegant styling
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.primarySurface.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    ayat.textArabic,
-                    style: AppTextStyles.arabic(
-                      size: _fontSize,
-                      color: AppColors.textPrimary(context),
-                    ),
-                    textAlign: TextAlign.right,
-                    textDirection: TextDirection.rtl,
-                  ),
-                ),
-
-                if (_showTranslation) ...[
-                  const SizedBox(height: 16),
-
-                  // Translation - with modern divider
-                  Row(
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          gradient: AppColors.goldGradient,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          ayat.textTranslation,
-                          style: AppTextStyles.bodyMedium(
-                            color: AppColors.textSecondary(context),
-                            height: 1.6,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
+      child: Center(
+        child: Text(
+          '$number',
+          style: const TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
           ),
         ),
       ),
@@ -334,68 +410,42 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
         top: false,
         child: Row(
           children: [
-            // Font size label
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: AppColors.primarySurface.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                Icons.text_fields,
-                size: 18,
-                color: AppColors.primary,
-              ),
+              child: Icon(Icons.text_fields, size: 18, color: AppColors.primary),
             ),
             const SizedBox(width: 12),
-
-            // Font size slider
             Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: AppColors.primary,
-                      inactiveTrackColor: AppColors.primarySurface,
-                      thumbColor: AppColors.primary,
-                      overlayColor: AppColors.primary.withValues(alpha: 0.1),
-                      trackHeight: 4,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 8,
-                      ),
-                    ),
-                    child: Slider(
-                      value: _fontSize,
-                      min: 20,
-                      max: 40,
-                      divisions: 10,
-                      onChanged: (value) {
-                        setState(() {
-                          _fontSize = value;
-                        });
-                      },
-                    ),
-                  ),
-                ],
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: AppColors.primary,
+                  inactiveTrackColor: AppColors.primarySurface,
+                  thumbColor: AppColors.primary,
+                  overlayColor: AppColors.primary.withValues(alpha: 0.1),
+                  trackHeight: 4,
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                ),
+                child: Slider(
+                  value: _fontSize,
+                  min: 20,
+                  max: 40,
+                  divisions: 10,
+                  onChanged: (value) {
+                    setState(() => _fontSize = value);
+                  },
+                ),
               ),
             ),
-
             const SizedBox(width: 12),
-
-            // Toggle translation button
             GestureDetector(
-              onTap: () {
-                setState(() {
-                  _showTranslation = !_showTranslation;
-                });
-              },
+              onTap: () => setState(() => _showTranslation = !_showTranslation),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: _showTranslation
                       ? AppColors.primary
